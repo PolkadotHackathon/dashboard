@@ -5,7 +5,7 @@ import {
   web3FromAddress,
 } from "@polkadot/extension-dapp";
 import { InjectedAccountWithMeta } from "@polkadot/extension-inject/types";
-import { useEffect, useState } from "react";
+import { useEffect, useReducer, useState } from "react";
 import "./styles/main.scss";
 import "./styles/dashboard.scss";
 import DeformCanvas from "./components/HoverCanvas";
@@ -29,6 +29,9 @@ import { db } from "./lib/firebase";
 const NAME = "pkd_test";
 
 function App() {
+
+  const [, forceUpdate] = useReducer(x => x + 1, 0);
+
   const [api, setApi] = useState<ApiPromise | null>(null);
   const [keyring, setKeyring] = useState<Keyring | null>(null);
   const [accounts, setAccounts] = useState<InjectedAccountWithMeta[]>([]);
@@ -99,31 +102,32 @@ function App() {
 
     setData({
       websites: keys,
-      getter: (key: any) => {
+      getter: async (key: any) => {
         for (let i = 0; i < entries.length; i++) {
           if (entries[i][0].args.map((k) => k.toPrimitive())[0] === key) {
             const data = entries[i][1].toJSON();
-            Object.entries(data as any).map(([k, v]: [string, any]) => {
-              v.clicks.map((click: any) => {
-                const encryptedWordArray = CryptoJS.lib.WordArray.create(
-                  click.domId
-                );
-                const encryptedBase64 = encryptedWordArray.toString(
-                  CryptoJS.enc.Base64
-                );
-                const decrypted = CryptoJS.AES.decrypt(
-                  encryptedBase64,
-                  "BuyBuy"
-                );
-                const decryptedString = decrypted.toString(CryptoJS.enc.Utf8);
-                const originalMessage = decryptedString.replace(
-                  /[\x00-\x1F\x7F-\x9F]/g,
-                  ""
-                );
-                click.domId = originalMessage.trim();
-              });
-            });
-            console.log(data);
+            await Object.entries(data as any).map(
+              async ([k, v]: [string, any]) => {
+                await v.clicks.map(async (click: any) => {
+                  const encryptedWordArray = CryptoJS.lib.WordArray.create(
+                    click.domId
+                  );
+                  const encryptedBase64 = encryptedWordArray.toString(
+                    CryptoJS.enc.Base64
+                  );
+                  const decrypted = CryptoJS.AES.decrypt(
+                    encryptedBase64,
+                    "BuyBuy"
+                  );
+                  const decryptedString = decrypted.toString(CryptoJS.enc.Utf8);
+                  const originalMessage = decryptedString.replace(
+                    /[\x00-\x1F\x7F-\x9F]/g,
+                    ""
+                  );
+                  click.domId = await buttonNameProcess(originalMessage.trim());
+                });
+              }
+            );
             return data;
           }
         }
@@ -168,20 +172,21 @@ function App() {
     setup();
   }, []);
 
-
   const buttonNameProcess = async (name: string) => {
-    const parts = name.split('-');
-    const docId = parts[parts.length - 1];
+    const parts = name.split("-");
 
-    const docRef = doc(db, "products", docId); // Adjust the collection name if necessary
-    const docSnap = await getDoc(docRef);
+    if (name.startsWith("add-to-cart")) {
+      const docId = parts[parts.length - 1];
 
-    if (docSnap.exists()) {
-      return docSnap.data().name; // Assuming the document has a field named 'name'
-    } else {
-      console.log("No such document!");
-      return null;
+      const docSnap = await getDoc(doc(db, "products", docId));
+      if (docSnap.exists()) {
+        return docSnap.data()!!.nickname;
+      } else {
+        console.log("No such document!");
+        return null;
+      }
     }
+    return name;
   };
 
   return (
@@ -236,11 +241,13 @@ function App() {
                 </div>
                 <div className="web-select">
                   <select
-                    onChange={async (e) => {
+                    onChange={(e) => {
                       const selection = parseInt(e.target.value);
-                      setSelection({
-                        id: selection,
-                        data: data?.getter(selection),
+                      data?.getter(selection).then((d: any) => {
+                        setSelection({
+                          id: selection,
+                          data: d,
+                        });
                       });
                     }}
                   >
@@ -332,21 +339,19 @@ function App() {
                                   acc[domId] = (acc[domId] || 0) + 1;
                                   return acc;
                                 }, {})
-                            )
-                              .map(
-                                ([domId, count]: [any, any], index: any) => ({
-                                  label: domId,
-                                  value: count,
-                                  id: index,
-                                })
-                              )
-                              .filter((item: any) => {
-                                // Check if does not start with "Aaglobal"
-                                if (!item.label.startsWith("add-to-cart"))
-                                  return false;
-                                if (selectedCategoryA === "") return true;
-                                return false;
-                              }),
+                            ).map(([domId, count]: [any, any], index: any) => ({
+                              label: domId,
+                              value: count,
+                              id: index,
+                            })),
+                            // .filter((item: any) => {
+                            //   // Check if does not start with "Aaglobal"
+                            //   console.log(item);
+                            //   if (!item.label.startsWith("add-to-cart"))
+                            //     return false;
+                            //   if (selectedCategoryA === "") return true;
+                            //   return false;
+                            // }),
                           },
                         ]}
                         width={600}
@@ -378,7 +383,7 @@ function App() {
                             )
                               .map(
                                 ([domId, count]: [any, any], index: any) => ({
-                                  label: buttonNameProcess(domId),
+                                  label: domId,
                                   value: count,
                                   id: index,
                                 })
