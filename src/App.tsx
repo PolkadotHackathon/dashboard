@@ -54,6 +54,8 @@ function App() {
   const [processedData3, setProcessedData3] = useState<number>(0);
   const [products, setProducts] = useState<any[]>([]);
 
+  const [updater, setUpdater] = useState<any>(null);
+
   const setSelectedAccount = async (account: InjectedAccountWithMeta) => {
     if (!api) return;
     _setSelectedAccount(account);
@@ -65,6 +67,16 @@ function App() {
     const provider = new WsProvider("ws://localhost:9944");
     const api = await ApiPromise.create({ provider });
     setApi(api);
+  };
+
+  const resetUpdater = () => {
+    if (updater) {
+      clearInterval(updater);
+    }
+    const u = setInterval(async () => {
+      await updateData();
+    }, 1000);
+    setUpdater(u);
   };
 
   const handleConnection = async () => {
@@ -98,8 +110,6 @@ function App() {
     if (!api) {
       return;
     }
-
-    console.log("update2");
 
     const entries = await api.query.dbModule.websiteMap.entries();
     const keys = entries.map(
@@ -139,9 +149,9 @@ function App() {
     };
 
     setData(newdata);
+    console.log(selection);
 
     if (selection) {
-      console.log("Updating...");
       setSelection({
         id: selection.id,
         data: newdata?.getter(selection.id),
@@ -323,14 +333,6 @@ function App() {
     };
   }, [data]);
 
-  useEffect(() => {
-    if (api) {
-      setInterval(async () => {
-        await updateData();
-      }, 1000);
-    }
-  }, [selection]);
-
   function formatClickToCheckoutRatio(ratio: number) {
     if (ratio === 0 || isNaN(ratio)) {
       return "N/A";
@@ -339,6 +341,12 @@ function App() {
       return (ratio * 100).toFixed(2) + "%";
     }
   }
+
+  useEffect(() => {
+    if (selectedAccount && privateKey && selection) {
+      resetUpdater();
+    }
+  }, [selectedAccount, privateKey, selection]);
 
   return (
     <div className="app">
@@ -364,7 +372,6 @@ function App() {
                       ).value;
                       if (val) {
                         registerWebsite(parseInt(val));
-                        updateData();
                         setAddWebsiteWindowOpen(false);
                       }
                     }}
