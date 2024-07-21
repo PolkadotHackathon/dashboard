@@ -288,7 +288,7 @@ function App() {
               <div className="maincontent">
                 <div className="chart-card">
                   <div className="chart-header">
-                    <h2>Product Categories</h2>
+                    <h2>Popular Products</h2>
                     <select
                       id="category-select-a"
                       onChange={() => {
@@ -303,6 +303,7 @@ function App() {
                       <option value="" disabled selected hidden>
                         Select Category
                       </option>
+                      <option value="">All Categories</option>
                       {[
                         "Electronics",
                         "Sports & Leisure",
@@ -315,33 +316,88 @@ function App() {
                       ))}
                     </select>
                   </div>
-                </div>
-                {selection && selection.data && (
-                  <PieChart
-                    series={[
-                      {
-                        data: Object.entries(
-                          Object.entries(selection.data)
-                            .flatMap(([, value]: any) =>
-                              Object.values(value.clicks).map(
-                                (click: any) => click.domId
-                              )
+                  <div className="chart-body">
+                    {selection && selection.data && (
+                      <PieChart
+                        series={[
+                          {
+                            data: Object.entries(
+                              Object.entries(selection.data)
+                                .flatMap(([, value]: any) =>
+                                  Object.values(value.clicks).map(
+                                    (click: any) => click.domId
+                                  )
+                                )
+                                .reduce((acc: any, domId: any) => {
+                                  acc[domId] = (acc[domId] || 0) + 1;
+                                  return acc;
+                                }, {})
                             )
-                            .reduce((acc: any, domId: any) => {
-                              acc[domId] = (acc[domId] || 0) + 1;
-                              return acc;
-                            }, {})
-                        ).map(([domId, count]: [any, any], index: any) => ({
-                          label: buttonNameProcess(domId),
-                          value: count,
-                          id: index,
-                        })),
-                      },
-                    ]}
-                    width={400}
-                    height={200}
-                  />
-                )}
+                              .map(
+                                ([domId, count]: [any, any], index: any) => ({
+                                  label: domId,
+                                  value: count,
+                                  id: index,
+                                })
+                              )
+                              .filter((item: any) => {
+                                // Check if does not start with "Aaglobal"
+                                if (!item.label.startsWith("add-to-cart"))
+                                  return false;
+                                if (selectedCategoryA === "") return true;
+                                return false;
+                              }),
+                          },
+                        ]}
+                        width={600}
+                        height={300}
+                      />
+                    )}
+                  </div>
+                </div>
+                <div className="chart-card">
+                  <div className="chart-header">
+                    <h2>Popular Categories</h2>
+                  </div>
+                  <div className="chart-body">
+                    {selection && selection.data && (
+                      <PieChart
+                        series={[
+                          {
+                            data: Object.entries(
+                              Object.entries(selection.data)
+                                .flatMap(([, value]: any) =>
+                                  Object.values(value.clicks).map(
+                                    (click: any) => click.domId
+                                  )
+                                )
+                                .reduce((acc: any, domId: any) => {
+                                  acc[domId] = (acc[domId] || 0) + 1;
+                                  return acc;
+                                }, {})
+                            )
+                              .map(
+                                ([domId, count]: [any, any], index: any) => ({
+                                  label: buttonNameProcess(domId),
+                                  value: count,
+                                  id: index,
+                                })
+                              )
+                              .filter((item: any) => {
+                                // Check if does not start with "Aaglobal"
+                                if (!item.label.startsWith("add-to-cart"))
+                                  return false;
+                                if (selectedCategoryA === "") return true;
+                                return false;
+                              }),
+                          },
+                        ]}
+                        width={600}
+                        height={300}
+                      />
+                    )}
+                  </div>
+                </div>
               </div>
             </div>
           </div>
