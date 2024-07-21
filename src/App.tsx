@@ -1,4 +1,4 @@
-import { WsProvider, ApiPromise, Keyring } from "@polkadot/api";
+import { WsProvider, ApiPromise } from "@polkadot/api";
 import {
   web3Accounts,
   web3Enable,
@@ -29,7 +29,7 @@ import polkadot from "./assets/polkadot.png";
 import { PieChart } from "@mui/x-charts/PieChart";
 import { BarChart } from "@mui/x-charts/BarChart";
 import CryptoJS from "crypto-js";
-import { collection, doc, getDoc, getDocs } from "firebase/firestore";
+import { collection, getDocs } from "firebase/firestore";
 import { db } from "./lib/firebase";
 import Analytics from "./components/Analytics";
 
@@ -37,7 +37,6 @@ const NAME = "pkd_test";
 
 function App() {
   const [api, setApi] = useState<ApiPromise | null>(null);
-  const [keyring, setKeyring] = useState<Keyring | null>(null);
   const [accounts, setAccounts] = useState<InjectedAccountWithMeta[]>([]);
   const [selectedAccount, _setSelectedAccount] =
     useState<InjectedAccountWithMeta | null>(null);
@@ -66,7 +65,6 @@ function App() {
     const provider = new WsProvider("ws://localhost:9944");
     const api = await ApiPromise.create({ provider });
     setApi(api);
-    setKeyring(new Keyring({ type: "sr25519" }));
   };
 
   const handleConnection = async () => {
@@ -98,18 +96,21 @@ function App() {
 
   const updateData = async () => {
     if (!api) return;
+
     const entries = await api.query.dbModule.websiteMap.entries();
     const keys = entries.map(
       ([key, _]) => key.args.map((k) => k.toPrimitive())[0]
     );
 
-    setData({
+    console.log("update");
+
+    const newdata = {
       websites: keys,
       getter: (key: any) => {
         for (let i = 0; i < entries.length; i++) {
           if (entries[i][0].args.map((k) => k.toPrimitive())[0] === key) {
             const data = entries[i][1].toJSON();
-            Object.entries(data as any).map(([k, v]: [string, any]) => {
+            Object.entries(data as any).map(([_, v]: [string, any]) => {
               v.clicks.map((click: any) => {
                 const encryptedWordArray = CryptoJS.lib.WordArray.create(
                   click.domId
@@ -133,7 +134,17 @@ function App() {
           }
         }
       },
-    });
+    };
+
+    setData(newdata);
+
+    if (selection) {
+      console.log("Updating...");
+      setSelection({
+        id: selection.id,
+        data: newdata?.getter(selection.id),
+      });
+    }
   };
 
   const registerWebsite = async (name: number) => {
@@ -224,18 +235,9 @@ function App() {
   }, [selection, selectedCategoryA]);
 
   useEffect(() => {
-    if (selection) {
-      setSelection({
-        id: selection.id,
-        data: data?.getter(selection.id),
-      });
-    }
-  }, [data]);
-
-  useEffect(() => {
     if (selection && selection.data) {
       const has = Object.entries(selection.data).map(
-        ([key, value]: [string, any]) => {
+        ([_, value]: [string, any]) => {
           return value.clicks.find(
             (click: any) => click.domId === "checkout-button"
           );
@@ -320,10 +322,9 @@ function App() {
   }, [data]);
 
   useEffect(() => {
-    const intervalId = setInterval(() => {
-      updateData();
+    setInterval(async () => {
+      await updateData();
     }, 1000);
-    return () => clearInterval(intervalId);
   }, []);
 
   function formatClickToCheckoutRatio(ratio: number) {
