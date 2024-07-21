@@ -10,17 +10,22 @@ import "./styles/main.scss";
 import "./styles/dashboard.scss";
 import DeformCanvas from "./components/HoverCanvas";
 import {
+  Bitcoin,
   Bolt,
+  BrainCircuit,
   ClipboardList,
   Copy,
+  Earth,
   Info,
   LayoutGrid,
+  Percent,
   Plus,
 } from "lucide-react";
 import EC from "elliptic";
 import { Buffer } from "buffer";
 import Identicon from "@polkadot/react-identicon";
 import datahive_white from "./assets/datahive_white.png";
+import polkadot from "./assets/polkadot.png";
 import { PieChart } from "@mui/x-charts/PieChart";
 import { BarChart } from "@mui/x-charts/BarChart";
 import CryptoJS from "crypto-js";
@@ -219,6 +224,15 @@ function App() {
   }, [selection, selectedCategoryA]);
 
   useEffect(() => {
+    if (selection) {
+      setSelection({
+        id: selection.id,
+        data: data?.getter(selection.id),
+      });
+    }
+  }, [data]);
+
+  useEffect(() => {
     if (selection && selection.data) {
       const has = Object.entries(selection.data).map(
         ([key, value]: [string, any]) => {
@@ -290,14 +304,36 @@ function App() {
     })();
   }, []);
 
-function formatClickToCheckoutRatio(ratio: number) {
+  useEffect(() => {
+    const blob = document.getElementById("blob");
+    window.onpointermove = (event) => {
+      const { clientX, clientY } = event;
+
+      blob?.animate(
+        {
+          left: `${clientX}px`,
+          top: `${clientY}px`,
+        },
+        { duration: 3000, fill: "forwards" }
+      );
+    };
+  }, [data]);
+
+  useEffect(() => {
+    const intervalId = setInterval(() => {
+      updateData();
+    }, 1000);
+    return () => clearInterval(intervalId);
+  }, []);
+
+  function formatClickToCheckoutRatio(ratio: number) {
     if (ratio === 0 || isNaN(ratio)) {
-        return "N/A";
+      return "N/A";
     } else {
-        // Round to 2 decimal places
-        return (ratio * 100).toFixed(2) + "%";
+      // Round to 2 decimal places
+      return (ratio * 100).toFixed(2) + "%";
     }
-}
+  }
 
   return (
     <div className="app">
@@ -336,6 +372,8 @@ function formatClickToCheckoutRatio(ratio: number) {
               <></>
             )}
             <div className="dashboard">
+              <div id="blob"></div>
+              <div id="blur"></div>
               <div className="sidepane">
                 <div className="user-profile">
                   <Identicon
@@ -364,7 +402,7 @@ function formatClickToCheckoutRatio(ratio: number) {
                     </option>
                     {data?.websites.map((website: any) => (
                       <option key={website} value={website}>
-                        {website}
+                        Website ID: {website}
                       </option>
                     ))}
                   </select>
@@ -400,115 +438,141 @@ function formatClickToCheckoutRatio(ratio: number) {
                   DataHive Inc.
                 </div>
               </div>
-              <div className="maincontent">
-                <div className="chart-card">
-                  <div className="chart-header">
-                    <h2>Popular Products</h2>
-                    <select
-                      id="category-select-a"
-                      defaultValue=""
-                      onChange={() => {
-                        const val = (
-                          document.getElementById(
-                            "category-select-a"
-                          )!! as HTMLSelectElement
-                        ).value;
-                        setSelectedCategoryA(val);
+              <div>
+                <div className="mainheader">
+                  <div className="header">
+                    <img src={datahive_white}></img>
+                    <h1>DataHive Dashboard</h1>
+                  </div>
+                </div>
+                <div className="maincontent">
+                  <div className="chart-card">
+                    <div className="chart-header">
+                      <div className="chart-title">
+                        <Earth color="white" size={32} />
+                        <h2>Popular Products</h2>
+                      </div>
+                      <select
+                        id="category-select-a"
+                        defaultValue=""
+                        onChange={() => {
+                          const val = (
+                            document.getElementById(
+                              "category-select-a"
+                            )!! as HTMLSelectElement
+                          ).value;
+                          setSelectedCategoryA(val);
+                        }}
+                      >
+                        <option value="" disabled hidden>
+                          Select Category
+                        </option>
+                        <option value="">All Categories</option>
+                        {[
+                          "Electronics",
+                          "Sports & Leisure",
+                          "Clothing",
+                          "Home & Furniture",
+                          "Health & Beauty",
+                          "Garden & DIY",
+                        ].map((category) => (
+                          <option value={category} key={category}>
+                            {category}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className="chart-body">
+                      {processedData && (
+                        <PieChart
+                          series={[
+                            {
+                              data: processedData,
+                            },
+                          ]}
+                          width={600}
+                          height={300}
+                        />
+                      )}
+                    </div>
+                  </div>
+                  <div className="chart-card">
+                    <div className="chart-header">
+                      <div className="chart-title">
+                        <Bitcoin color="white" size={32} />
+                        <h2>User Checkout</h2>
+                      </div>
+                    </div>
+                    <div className="chart-body">
+                      {processedData && (
+                        <BarChart
+                          xAxis={[
+                            {
+                              scaleType: "band",
+                              data: ["Checkout", "No Checkout"],
+                            },
+                          ]}
+                          series={[
+                            {
+                              data: processedData2,
+                            },
+                          ]}
+                          width={600}
+                          height={300}
+                        />
+                      )}
+                    </div>
+                  </div>
+                  <div className="chart-card">
+                    <div className="chart-header">
+                      <div className="chart-title">
+                        <Percent color="white" size={32} />
+                        <h2>Click to Checkout Ratio</h2>
+                      </div>
+                    </div>
+                    <div className="chart-body">
+                      <h1>{formatClickToCheckoutRatio(processedData3)}</h1>
+                    </div>
+                  </div>
+                  <div className="chart-card">
+                    <div className="chart-header">
+                      <div className="chart-title">
+                        <BrainCircuit color="white" size={32} />
+                        <h2>AI Analytics</h2>
+                      </div>
+                    </div>
+                    <div
+                      className="chart-body"
+                      style={{
+                        justifyContent: "flex-start",
+                        alignItems: "flex-start",
+                        paddingLeft: "20px",
+                        paddingRight: "20px",
                       }}
                     >
-                      <option value="" disabled hidden>
-                        Select Category
-                      </option>
-                      <option value="">All Categories</option>
-                      {[
-                        "Electronics",
-                        "Sports & Leisure",
-                        "Clothing",
-                        "Home & Furniture",
-                        "Health & Beauty",
-                        "Garden & DIY",
-                      ].map((category) => (
-                        <option value={category} key={category}>
-                          {category}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                  <div className="chart-body">
-                    {processedData && (
-                      <PieChart
-                        series={[
-                          {
-                            data: processedData,
-                          },
-                        ]}
-                        width={600}
-                        height={300}
-                      />
-                    )}
-                  </div>
-                </div>
-                <div className="chart-card">
-                  <div className="chart-header">
-                    <h2>User Checkout</h2>
-                  </div>
-                  <div className="chart-body">
-                    {processedData && (
-                      <BarChart
-                        xAxis={[
-                          {
-                            scaleType: "band",
-                            data: ["Checkout", "No Checkout"],
-                          },
-                        ]}
-                        series={[
-                          {
-                            data: processedData2,
-                          },
-                        ]}
-                        width={600}
-                        height={300}
-                      />
-                    )}
-                  </div>
-                </div>
-                <div className="chart-card">
-                  <div className="chart-header">
-                    <h2>Click to Checkout Ratio</h2>
-                  </div>
-                  <div className="chart-body">
-                    {/* {processedData3 != 0 && <h1>{processedData3}</h1>} */}
-
-                        <h1>
-                                        {
-                                            formatClickToCheckoutRatio(processedData3)
-
-                                        }
-                                        </h1>
-                  </div>
-                </div>
-                <div className="chart-card">
-                  <div className="chart-header">
-                    <h2>AI Analytics</h2>
-                  </div>
-                  <div className="chart-body" style={{
-                    justifyContent: "flex-start",
-                    alignItems: "flex-start",
-                  }}>
-                    {selection && selection.data && (
-                      <Analytics data={{
-                        popular_products_per_category: processedData,
-                        user_checkout: processedData2,
-                        click_to_checkout_ratio: processedData3,
-                      }} />
-                    )}
+                      {selection && selection.data && (
+                        <Analytics
+                          data={{
+                            popular_products_per_category: processedData,
+                            user_checkout: processedData2,
+                            click_to_checkout_ratio: processedData3,
+                          }}
+                        />
+                      )}
+                    </div>
                   </div>
                 </div>
               </div>
             </div>
           </div>
         ) : (
-          <DeformCanvas />
+          <>
+            <div className="topnote">
+              <img src={datahive_white}></img>
+              DataHive Inc.
+            </div>
+            <DeformCanvas />
+          </>
         )}
         {accounts.length == 0 && !isLoggingIn ? (
           <div className="content">
@@ -516,10 +580,30 @@ function formatClickToCheckoutRatio(ratio: number) {
               <div className="login-card">
                 <h2
                   style={{
-                    marginBottom: "50px",
+                    marginBottom: 0,
                   }}
                 >
-                  Connect to <div className="bolded">Polkadot</div>
+                  Connect to{" "}
+                </h2>
+                <h2
+                  style={{
+                    marginTop: 0,
+                    marginBottom: "50px",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                  }}
+                >
+                  <img
+                    src={polkadot}
+                    alt="Polkadot"
+                    style={{
+                      width: "50px",
+                      height: "50px",
+                      marginRight: "22px",
+                    }}
+                  />
+                  <div className="bolded">Polkadot</div>
                 </h2>
                 <button className="login-button" onClick={handleConnection}>
                   Link my Wallet
@@ -632,7 +716,7 @@ function formatClickToCheckoutRatio(ratio: number) {
                   >
                     <Copy
                       color={tempKeys?.pubCopied ? "#00ff00" : "white"}
-                      size={35}
+                      size={70}
                     />
                   </a>
                 </div>
@@ -650,7 +734,7 @@ function formatClickToCheckoutRatio(ratio: number) {
                   >
                     <Copy
                       color={tempKeys?.priCopied ? "#00ff00" : "white"}
-                      size={35}
+                      size={70}
                     />
                   </a>
                 </div>

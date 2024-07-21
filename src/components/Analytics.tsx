@@ -61,7 +61,7 @@ export default function Analytics({ data }: { data: any }) {
     <div
       style={{
         wordWrap: "break-word",
-        wordBreak: "break-all",
+        wordBreak: "break-word",
       }}
     >
       {streamedText}

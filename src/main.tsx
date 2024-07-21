@@ -7,6 +7,7 @@ import "@fontsource/roboto/500.css";
 import "@fontsource/roboto/700.css";
 import { ThemeProvider, createTheme } from "@mui/material/styles";
 import CssBaseline from "@mui/material/CssBaseline";
+import DocumentMeta from "react-document-meta";
 
 const darkTheme = createTheme({
   palette: {
@@ -14,11 +15,18 @@ const darkTheme = createTheme({
   },
 });
 
+const meta = {
+  title: "DataHive",
+  description: "A decentralized data collection platform.",
+};
+
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
-    <ThemeProvider theme={darkTheme}>
-      <CssBaseline />
-      <App />
-    </ThemeProvider>
+    <DocumentMeta {...meta}>
+      <ThemeProvider theme={darkTheme}>
+        <CssBaseline />
+        <App />
+      </ThemeProvider>
+    </DocumentMeta>
   </React.StrictMode>
 );

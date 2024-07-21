@@ -12,6 +12,32 @@ body {
   pointer-events: none;
 }
 
+#blob {
+  background-color: white;
+  height: 12vmax;
+  aspect-ratio: 1;
+  position: fixed;
+  left: 50%;
+  top: 50%;
+  translate: -50% -50%;
+  border-radius: 50%;
+  background: linear-gradient(60deg, #00fefe, #8d00ff);
+  animation: rotate 20s infinite;
+  opacity: 0.5;
+  z-index: -2;
+}
+
+#blur {
+  height: 100%;
+  width: 100%;
+  z-index: -1;
+  position: fixed;
+  top: 0;
+  left: 0;
+  backdrop-filter: blur(6vmax);
+}
+
+
 button {
   pointer-events: all !important;
 }
@@ -170,11 +196,11 @@ a.dropdown-item {
     }
 
     @media (min-width: 768px) {
-      font-size: 70px;
+      font-size: 60px;
     }
 
     @media (min-width: 1024px) {
-      font-size: 90px;
+      font-size: 70px;
     }
   }
 
@@ -301,15 +327,15 @@ a.dropdown-item {
     margin-bottom: 40px;
 
     @media (max-width: 768px) {
-      font-size: 30px;
+      font-size: 25px;
     }
 
     @media (min-width: 768px) {
-      font-size: 40px;
+      font-size: 35px;
     }
 
     @media (min-width: 1024px) {
-      font-size: 50px;
+      font-size: 40px;
     }
   }
 
@@ -356,7 +382,7 @@ a.dropdown-item {
   padding: 20px 40px;
   text-decoration: none;
   font-weight: bold;
-  font-size: 6vh;
+  font-size: 4vh;
   position: relative;
   margin-top: 20px;
   cursor: pointer;
@@ -450,5 +476,25 @@ a.dropdown-item {
 @media screen and (max-width: 768px) {
   .login-button {
     font-size: 8vw;
+  }
+}
+
+.topnote {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  padding: 20px;
+  font-size: 30px;
+  text-align: center;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin-top: 10px;
+
+  img {
+    width: 50px;
+    height: 50px;
+    margin-right: 20px;
   }
 }
