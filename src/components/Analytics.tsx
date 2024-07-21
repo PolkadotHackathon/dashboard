@@ -17,24 +17,12 @@ const AnalyticsContainer = styled.div`
   font-family: 'Arial', sans-serif;
 `;
 
-const Title = styled.h1`
-  font-size: 2.5rem;
-  margin-bottom: 1.5rem;
-  color: #61dafb;
-`;
-
 const Card = styled.div`
   background-color: #2a2a2a;
   border-radius: 8px;
   padding: 1.5rem;
   margin-bottom: 1.5rem;
   box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-`;
-
-const CardTitle = styled.h2`
-  font-size: 1.8rem;
-  margin-bottom: 1rem;
-  color: #61dafb;
 `;
 
 const ChatContainer = styled.div`
@@ -49,7 +37,6 @@ const ChatMessage = styled.p`
   margin-bottom: 0.5rem;
   line-height: 1.5;
 `;
-
 
 export default function Analytics({ data }: { data: any }) {
     console.log(env.VITE_HELLO);
