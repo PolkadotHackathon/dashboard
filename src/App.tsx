@@ -5,7 +5,7 @@ import {
   web3FromAddress,
 } from "@polkadot/extension-dapp";
 import { InjectedAccountWithMeta } from "@polkadot/extension-inject/types";
-import { useEffect, useState } from "react";
+import { useEffect, useReducer, useState } from "react";
 import "./styles/main.scss";
 import "./styles/dashboard.scss";
 import DeformCanvas from "./components/HoverCanvas";
@@ -23,12 +23,17 @@ import Identicon from "@polkadot/react-identicon";
 import datahive_white from "./assets/datahive_white.png";
 import { PieChart } from "@mui/x-charts/PieChart";
 import CryptoJS from "crypto-js";
+import { doc, getDoc } from "firebase/firestore";
+import { db } from "./lib/firebase";
 
 import Analytics from "./components/Analytics";
 
 const NAME = "pkd_test";
 
 function App() {
+
+  const [, forceUpdate] = useReducer(x => x + 1, 0);
+
   const [api, setApi] = useState<ApiPromise | null>(null);
   const [keyring, setKeyring] = useState<Keyring | null>(null);
   const [accounts, setAccounts] = useState<InjectedAccountWithMeta[]>([]);
@@ -99,31 +104,32 @@ function App() {
 
     setData({
       websites: keys,
-      getter: (key: any) => {
+      getter: async (key: any) => {
         for (let i = 0; i < entries.length; i++) {
           if (entries[i][0].args.map((k) => k.toPrimitive())[0] === key) {
             const data = entries[i][1].toJSON();
-            Object.entries(data as any).map(([k, v]: [string, any]) => {
-              v.clicks.map((click: any) => {
-                const encryptedWordArray = CryptoJS.lib.WordArray.create(
-                  click.domId
-                );
-                const encryptedBase64 = encryptedWordArray.toString(
-                  CryptoJS.enc.Base64
-                );
-                const decrypted = CryptoJS.AES.decrypt(
-                  encryptedBase64,
-                  "BuyBuy"
-                );
-                const decryptedString = decrypted.toString(CryptoJS.enc.Utf8);
-                const originalMessage = decryptedString.replace(
-                  /[\x00-\x1F\x7F-\x9F]/g,
-                  ""
-                );
-                click.domId = originalMessage.trim();
-              });
-            });
-            console.log(data);
+            await Object.entries(data as any).map(
+              async ([k, v]: [string, any]) => {
+                await v.clicks.map(async (click: any) => {
+                  const encryptedWordArray = CryptoJS.lib.WordArray.create(
+                    click.domId
+                  );
+                  const encryptedBase64 = encryptedWordArray.toString(
+                    CryptoJS.enc.Base64
+                  );
+                  const decrypted = CryptoJS.AES.decrypt(
+                    encryptedBase64,
+                    "BuyBuy"
+                  );
+                  const decryptedString = decrypted.toString(CryptoJS.enc.Utf8);
+                  const originalMessage = decryptedString.replace(
+                    /[\x00-\x1F\x7F-\x9F]/g,
+                    ""
+                  );
+                  click.domId = await buttonNameProcess(originalMessage.trim());
+                });
+              }
+            );
             return data;
           }
         }
@@ -168,8 +174,21 @@ function App() {
     setup();
   }, []);
 
-  const buttonNameProcess = (name: string) => {
+  const buttonNameProcess = async (name: string) => {
+    const parts = name.split("-");
 
+    if (name.startsWith("add-to-cart")) {
+      const docId = parts[parts.length - 1];
+
+      const docSnap = await getDoc(doc(db, "products", docId));
+      if (docSnap.exists()) {
+        return docSnap.data()!!.nickname;
+      } else {
+        console.log("No such document!");
+        return null;
+      }
+    }
+    return name;
   };
 
   return (
@@ -224,31 +243,14 @@ function App() {
                 </div>
                 <div className="web-select">
                   <select
-                    onChange={async (e) => {
+                    onChange={(e) => {
                       const selection = parseInt(e.target.value);
-                      setSelection({
-                        id: selection,
-                        data: data?.getter(selection),
+                      data?.getter(selection).then((d: any) => {
+                        setSelection({
+                          id: selection,
+                          data: d,
+                        });
                       });
-
-                      console.log(
-                        Object.entries(
-                          Object.entries(data?.getter(selection))
-                            .flatMap(([, value]: any) =>
-                              Object.values(value.clicks).map(
-                                (click: any) => click.domId
-                              )
-                            )
-                            .reduce((acc: any, domId: any) => {
-                              acc[domId] = (acc[domId] || 0) + 1;
-                              return acc;
-                            }, {})
-                        ).map(([domId, count]: [any, any], index: any) => ({
-                          label: domId,
-                          value: count,
-                          id: index,
-                        }))
-                      );
                     }}
                   >
                     <option value="" disabled selected hidden>
@@ -295,7 +297,7 @@ function App() {
               <div className="maincontent">
                 <div className="chart-card">
                   <div className="chart-header">
-                    <h2>Product Categories</h2>
+                    <h2>Popular Products</h2>
                     <select
                       id="category-select-a"
                       onChange={() => {
@@ -310,6 +312,7 @@ function App() {
                       <option value="" disabled selected hidden>
                         Select Category
                       </option>
+                      <option value="">All Categories</option>
                       {[
                         "Electronics",
                         "Sports & Leisure",
@@ -322,33 +325,86 @@ function App() {
                       ))}
                     </select>
                   </div>
+                  <div className="chart-body">
+                    {selection && selection.data && (
+                      <PieChart
+                        series={[
+                          {
+                            data: Object.entries(
+                              Object.entries(selection.data)
+                                .flatMap(([, value]: any) =>
+                                  Object.values(value.clicks).map(
+                                    (click: any) => click.domId
+                                  )
+                                )
+                                .reduce((acc: any, domId: any) => {
+                                  acc[domId] = (acc[domId] || 0) + 1;
+                                  return acc;
+                                }, {})
+                            ).map(([domId, count]: [any, any], index: any) => ({
+                              label: domId,
+                              value: count,
+                              id: index,
+                            })),
+                            // .filter((item: any) => {
+                            //   // Check if does not start with "Aaglobal"
+                            //   console.log(item);
+                            //   if (!item.label.startsWith("add-to-cart"))
+                            //     return false;
+                            //   if (selectedCategoryA === "") return true;
+                            //   return false;
+                            // }),
+                          },
+                        ]}
+                        width={600}
+                        height={300}
+                      />
+                    )}
+                  </div>
                 </div>
-                {selection && selection.data && (
-                  <PieChart
-                    series={[
-                      {
-                        data: Object.entries(
-                          Object.entries(selection.data)
-                            .flatMap(([, value]: any) =>
-                              Object.values(value.clicks).map(
-                                (click: any) => click.domId
-                              )
+                <div className="chart-card">
+                  <div className="chart-header">
+                    <h2>Popular Categories</h2>
+                  </div>
+                  <div className="chart-body">
+                    {selection && selection.data && (
+                      <PieChart
+                        series={[
+                          {
+                            data: Object.entries(
+                              Object.entries(selection.data)
+                                .flatMap(([, value]: any) =>
+                                  Object.values(value.clicks).map(
+                                    (click: any) => click.domId
+                                  )
+                                )
+                                .reduce((acc: any, domId: any) => {
+                                  acc[domId] = (acc[domId] || 0) + 1;
+                                  return acc;
+                                }, {})
                             )
-                            .reduce((acc: any, domId: any) => {
-                              acc[domId] = (acc[domId] || 0) + 1;
-                              return acc;
-                            }, {})
-                        ).map(([domId, count]: [any, any], index: any) => ({
-                          label: domId,
-                          value: count,
-                          id: index,
-                        })),
-                      },
-                    ]}
-                    width={400}
-                    height={200}
-                  />
-                )}
+                              .map(
+                                ([domId, count]: [any, any], index: any) => ({
+                                  label: domId,
+                                  value: count,
+                                  id: index,
+                                })
+                              )
+                              .filter((item: any) => {
+                                // Check if does not start with "Aaglobal"
+                                if (!item.label.startsWith("add-to-cart"))
+                                  return false;
+                                if (selectedCategoryA === "") return true;
+                                return false;
+                              }),
+                          },
+                        ]}
+                        width={600}
+                        height={300}
+                      />
+                    )}
+                  </div>
+                </div>
               </div>
             </div>
           </div>

@@ -1,7 +1,7 @@
 div.sidepane {
   background: #2a2a2e;
   color: white;
-  width: 500px;
+  width: 400px;
   height: 100%;
   position: fixed;
   top: 0;
@@ -36,7 +36,7 @@ div.sidepane {
       p {
         margin: 0;
         font-size: 12px;
-        max-width: 380px;
+        max-width: 280px;
 
         // Truncate
         white-space: nowrap;
@@ -79,7 +79,7 @@ div.sidepane {
     display: flex;
     align-items: center;
     justify-content: center;
-    width: 460px;
+    width: 360px;
     margin: 20px;
 
     select {
@@ -221,8 +221,13 @@ div.add-website-popup {
 }
 
 .maincontent {
-  margin-left: 500px;
-  width: calc(100% - 500px);
+  margin-left: 400px;
+  width: calc(100% - 400px);
+
+  // Arrange cards in a grid
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
 
   .chart-card {
     background: #2a2a2e;
@@ -234,7 +239,7 @@ div.add-website-popup {
     transition: 0.3s ease;
     pointer-events: all;
 
-    width: 50%;
+    width: 45%;
     
     .chart-header {
       display: flex;
