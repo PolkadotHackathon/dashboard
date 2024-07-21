@@ -1,5 +1,9 @@
 import { WsProvider, ApiPromise, Keyring } from "@polkadot/api";
-import { web3Accounts, web3Enable, web3FromAddress } from "@polkadot/extension-dapp";
+import {
+  web3Accounts,
+  web3Enable,
+  web3FromAddress,
+} from "@polkadot/extension-dapp";
 import { InjectedAccountWithMeta } from "@polkadot/extension-inject/types";
 import { useEffect, useState } from "react";
 import "./styles/main.scss";
@@ -17,6 +21,7 @@ import EC from "elliptic";
 import { Buffer } from "buffer";
 import Identicon from "@polkadot/react-identicon";
 import datahive_white from "./assets/datahive_white.png";
+import { PieChart } from "@mui/x-charts/PieChart";
 
 const NAME = "pkd_test";
 
@@ -35,6 +40,7 @@ function App() {
     useState<boolean>(false);
 
   const [data, setData] = useState<any | null>(null);
+  const [selection, setSelection] = useState<any | null>(null);
 
   const setSelectedAccount = async (account: InjectedAccountWithMeta) => {
     if (!api) return;
@@ -81,14 +87,21 @@ function App() {
   const updateData = async () => {
     if (!api) return;
 
-    // Load data from custom substrate pallet
-    const websites = await api.query.dbModule.websiteMap.keys();
-    const getter = async (key: any) => {
-      const data = await api.query.dbModule.websiteMap(key);
-      return data;
-    };
-    const data = await Promise.all(websites.map(getter));
-    setData(data);
+    const entries = await api.query.dbModule.websiteMap.entries();
+    const keys = entries.map(
+      ([key, _]) => key.args.map((k) => k.toPrimitive())[0]
+    );
+
+    setData({
+      websites: keys,
+      getter: (key: any) => {
+        for (let i = 0; i < entries.length; i++) {
+          if (entries[i][0].args.map((k) => k.toPrimitive())[0] === key) {
+            return entries[i][1].toJSON();
+          }
+        }
+      },
+    });
   };
 
   const registerWebsite = async (name: number) => {
@@ -188,13 +201,21 @@ function App() {
                   </div>
                 </div>
                 <div className="web-select">
-                  <select>
+                  <select
+                    onChange={async (e) => {
+                      const selection = parseInt(e.target.value);
+                      setSelection({
+                        id: selection,
+                        data: data?.getter(selection),
+                      });
+                    }}
+                  >
                     <option value="" disabled selected hidden>
                       Select Website
                     </option>
-                    {data?.map((website: any, index: number) => (
-                      <option key={index} value={index}>
-                        {website.id}
+                    {data?.websites.map((website: any) => (
+                      <option key={website} value={website}>
+                        {website}
                       </option>
                     ))}
                   </select>
@@ -229,6 +250,28 @@ function App() {
                   <img src={datahive_white}></img>
                   DataHive Inc.
                 </div>
+              </div>
+              <div className="maincontent">
+                <div className="chard-card">
+                  <select>
+                    <option value="day">Day</option>
+                    <option value="week">Week</option>
+                    <option value="month">Month</option>
+                  </select>
+                </div>
+                <PieChart
+                  series={[
+                    {
+                      data: [
+                        { id: 0, value: 10, label: "series A" },
+                        { id: 1, value: 15, label: "series B" },
+                        { id: 2, value: 20, label: "series C" },
+                      ],
+                    },
+                  ]}
+                  width={400}
+                  height={200}
+                />
               </div>
             </div>
           </div>
