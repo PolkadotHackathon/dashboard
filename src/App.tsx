@@ -95,14 +95,16 @@ function App() {
   };
 
   const updateData = async () => {
-    if (!api) return;
+    if (!api) {
+      return;
+    }
+
+    console.log("update2");
 
     const entries = await api.query.dbModule.websiteMap.entries();
     const keys = entries.map(
       ([key, _]) => key.args.map((k) => k.toPrimitive())[0]
     );
-
-    console.log("update");
 
     const newdata = {
       websites: keys,
@@ -322,10 +324,12 @@ function App() {
   }, [data]);
 
   useEffect(() => {
-    setInterval(async () => {
-      await updateData();
-    }, 1000);
-  }, []);
+    if (api) {
+      setInterval(async () => {
+        await updateData();
+      }, 1000);
+    }
+  }, [selection]);
 
   function formatClickToCheckoutRatio(ratio: number) {
     if (ratio === 0 || isNaN(ratio)) {
