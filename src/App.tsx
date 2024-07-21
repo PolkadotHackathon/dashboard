@@ -22,6 +22,7 @@ import { Buffer } from "buffer";
 import Identicon from "@polkadot/react-identicon";
 import datahive_white from "./assets/datahive_white.png";
 import { PieChart } from "@mui/x-charts/PieChart";
+import CryptoJS from "crypto-js";
 
 const NAME = "pkd_test";
 
@@ -41,6 +42,8 @@ function App() {
 
   const [data, setData] = useState<any | null>(null);
   const [selection, setSelection] = useState<any | null>(null);
+
+  const [selectedCategoryA, setSelectedCategoryA] = useState<string>("");
 
   const setSelectedAccount = async (account: InjectedAccountWithMeta) => {
     if (!api) return;
@@ -97,7 +100,28 @@ function App() {
       getter: (key: any) => {
         for (let i = 0; i < entries.length; i++) {
           if (entries[i][0].args.map((k) => k.toPrimitive())[0] === key) {
-            return entries[i][1].toJSON();
+            const data = entries[i][1].toJSON();
+            Object.entries(data as any).map(([k, v]: [string, any]) => {
+              v.clicks.map((click: any) => {
+                const encryptedWordArray = CryptoJS.lib.WordArray.create(
+                  click.domId
+                );
+                const encryptedBase64 = encryptedWordArray.toString(
+                  CryptoJS.enc.Base64
+                );
+                const decrypted = CryptoJS.AES.decrypt(
+                  encryptedBase64,
+                  "BuyBuy"
+                );
+                const decryptedString = decrypted.toString(CryptoJS.enc.Utf8);
+                const originalMessage = decryptedString.replace(
+                  /[\x00-\x1F\x7F-\x9F]/g,
+                  ""
+                );
+                click.domId = originalMessage.trim();
+              });
+            });
+            return data;
           }
         }
       },
@@ -252,12 +276,35 @@ function App() {
                 </div>
               </div>
               <div className="maincontent">
-                <div className="chard-card">
-                  <select>
-                    <option value="day">Day</option>
-                    <option value="week">Week</option>
-                    <option value="month">Month</option>
-                  </select>
+                <div className="chart-card">
+                  <div className="chart-header">
+                    <h2>Product Categories</h2>
+                    <select
+                      id="category-select-a"
+                      onChange={() => {
+                        const val = (
+                          document.getElementById(
+                            "category-select-a"
+                          )!! as HTMLSelectElement
+                        ).value;
+                        setSelectedCategoryA(val);
+                      }}
+                    >
+                      <option value="" disabled selected hidden>
+                        Select Category
+                      </option>
+                      {[
+                        "Electronics",
+                        "Sports & Leisure",
+                        "Clothing",
+                        "Home & Furniture",
+                        "Health & Beauty",
+                        "Garden & DIY",
+                      ].map((category) => (
+                        <option value={category}>{category}</option>
+                      ))}
+                    </select>
+                  </div>
                 </div>
                 <PieChart
                   series={[

@@ -224,5 +224,57 @@ div.add-website-popup {
   margin-left: 500px;
   width: calc(100% - 500px);
 
-  
+  .chart-card {
+    background: #2a2a2e;
+    color: white;
+    padding: 20px;
+    border-radius: 10px;
+    margin: 20px;
+    position: relative;
+    transition: 0.3s ease;
+    pointer-events: all;
+
+    width: 50%;
+    
+    .chart-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 100px;
+
+      h3 {
+        margin: 0;
+        font-size: 30px;
+      }
+
+      select {
+        padding: 10px;
+        font-size: 20px;
+        border-radius: 10px;
+        background: #2e2e33;
+        color: white;
+        margin: 0;
+        margin-right: 20px;
+        max-width: max-content;
+        padding-right: 50px;
+
+        -webkit-appearance: none;
+        -moz-appearance: none;
+        appearance: none;
+        background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23ffffff' width='40px' height='40px'><path d='M7 10l5 5 5-5z'/></svg>");
+        background-repeat: no-repeat;
+        background-position: right 10px top 50%;
+
+        &:hover {
+          background: #38383d;
+          -webkit-appearance: none;
+          -moz-appearance: none;
+          appearance: none;
+          background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23ffffff' width='40px' height='40px'><path d='M7 10l5 5 5-5z'/></svg>");
+          background-repeat: no-repeat;
+          background-position: right 10px top 50%;
+        }
+      }
+    }
+  }
 }
