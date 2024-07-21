@@ -121,6 +121,7 @@ function App() {
                 click.domId = originalMessage.trim();
               });
             });
+            console.log(data);
             return data;
           }
         }
@@ -165,14 +166,9 @@ function App() {
     setup();
   }, []);
 
-  useEffect(() => {
-    if (!api) return;
+  const buttonNameProcess = (name: string) => {
 
-    (async () => {
-      const time = await api.query.timestamp.now();
-      console.log(time.toPrimitive());
-    })();
-  }, [api]);
+  };
 
   return (
     <div className="app">
@@ -232,6 +228,25 @@ function App() {
                         id: selection,
                         data: data?.getter(selection),
                       });
+
+                      console.log(
+                        Object.entries(
+                          Object.entries(data?.getter(selection))
+                            .flatMap(([, value]: any) =>
+                              Object.values(value.clicks).map(
+                                (click: any) => click.domId
+                              )
+                            )
+                            .reduce((acc: any, domId: any) => {
+                              acc[domId] = (acc[domId] || 0) + 1;
+                              return acc;
+                            }, {})
+                        ).map(([domId, count]: [any, any], index: any) => ({
+                          label: domId,
+                          value: count,
+                          id: index,
+                        }))
+                      );
                     }}
                   >
                     <option value="" disabled selected hidden>
@@ -306,19 +321,32 @@ function App() {
                     </select>
                   </div>
                 </div>
-                <PieChart
-                  series={[
-                    {
-                      data: [
-                        { id: 0, value: 10, label: "series A" },
-                        { id: 1, value: 15, label: "series B" },
-                        { id: 2, value: 20, label: "series C" },
-                      ],
-                    },
-                  ]}
-                  width={400}
-                  height={200}
-                />
+                {selection && selection.data && (
+                  <PieChart
+                    series={[
+                      {
+                        data: Object.entries(
+                          Object.entries(selection.data)
+                            .flatMap(([, value]: any) =>
+                              Object.values(value.clicks).map(
+                                (click: any) => click.domId
+                              )
+                            )
+                            .reduce((acc: any, domId: any) => {
+                              acc[domId] = (acc[domId] || 0) + 1;
+                              return acc;
+                            }, {})
+                        ).map(([domId, count]: [any, any], index: any) => ({
+                          label: domId,
+                          value: count,
+                          id: index,
+                        })),
+                      },
+                    ]}
+                    width={400}
+                    height={200}
+                  />
+                )}
               </div>
             </div>
           </div>
