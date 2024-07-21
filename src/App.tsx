@@ -26,6 +26,7 @@ import { BarChart } from "@mui/x-charts/BarChart";
 import CryptoJS from "crypto-js";
 import { collection, doc, getDoc, getDocs } from "firebase/firestore";
 import { db } from "./lib/firebase";
+import Analytics from "./components/Analytics";
 
 const NAME = "pkd_test";
 
@@ -468,6 +469,23 @@ function App() {
                   </div>
                   <div className="chart-body">
                     {processedData3 != 0 && <h1>{processedData3}</h1>}
+                  </div>
+                </div>
+                <div className="chart-card">
+                  <div className="chart-header">
+                    <h2>AI Analytics</h2>
+                  </div>
+                  <div className="chart-body" style={{
+                    justifyContent: "flex-start",
+                    alignItems: "flex-start",
+                  }}>
+                    {selection && selection.data && (
+                      <Analytics data={{
+                        popular_products_per_category: processedData,
+                        user_checkout: processedData2,
+                        click_to_checkout_ratio: processedData3,
+                      }} />
+                    )}
                   </div>
                 </div>
               </div>

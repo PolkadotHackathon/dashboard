@@ -1,79 +1,70 @@
 import OpenAI from "openai";
 import { useState, useEffect } from "react";
-import styled from 'styled-components';
 
 const env = import.meta.env;
 
 const openai = new OpenAI({
-    apiKey: env.VITE_OPENAI_API_KEY,
-    project: env.VITE_OPENAI_PROJECT_NAME,
-    dangerouslyAllowBrowser: true,
+  apiKey: env.VITE_OPENAI_API_KEY,
+  project: env.VITE_OPENAI_PROJECT_NAME,
+  dangerouslyAllowBrowser: true,
 });
 
-const AnalyticsContainer = styled.div`
-  background-color: #1a1a1a;
-  color: #ffffff;
-  padding: 2rem;
-  font-family: 'Arial', sans-serif;
-`;
-
-const Card = styled.div`
-  background-color: #2a2a2a;
-  border-radius: 8px;
-  padding: 1.5rem;
-  margin-bottom: 1.5rem;
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-`;
-
-const ChatContainer = styled.div`
-  background-color: #333333;
-  border-radius: 8px;
-  padding: 1rem;
-  height: 300px;
-  overflow-y: auto;
-`;
-
-const ChatMessage = styled.p`
-  margin-bottom: 0.5rem;
-  line-height: 1.5;
-`;
-
 export default function Analytics({ data }: { data: any }) {
-    console.log(env.VITE_HELLO);
+  const [streamedText, setStreamedText] = useState("");
 
-    const [streamedText, setStreamedText] = useState('');
+  useEffect(() => {
+    async function streamText() {
+      setStreamedText(""); // Reset the text before starting the stream
 
-    useEffect(() => {
-        async function streamText() {
-            setStreamedText('');
+      try {
+        // Make sure to use the correct method from the OpenAI SDK
+        const response = await openai.chat.completions.create({
+          model: "gpt-4o-mini",
+          messages: [
+            {
+              role: "system",
+              content:
+                "You are a helpful assistant who summarizes and analyzes user interactions with websites. You will be given data about mouse presses on an ecommerce website, and should output a short and succinct analysis of it in plain text. Do NOT use markdown formatting.",
+            },
+            {
+              role: "user",
+              content: `Please summarize this data: ${JSON.stringify(data)}`,
+            },
+          ],
+          stream: true,
+        });
 
-            const stream = await openai.chat.completions.create({
-                model: "gpt-4o-mini",
-                messages: [
-                    { role: "system", content: "You are a helpful assistant who summarises and analyses user interactions with websites. You will be given mouse press data as a JSON string, and should output a reasonably short analysis of it in plain text." },
-                    { role: "user", content: JSON.stringify(data) }
-                ],
-                stream: true,
-            });
+        // Handling the streamed response
+        const reader = response.toReadableStream().getReader();
+        const decoder = new TextDecoder();
+        let text = "";
 
-            for await (const chunk of stream) {
-                if (chunk.choices[0].delta.content) {
-                    setStreamedText(prevText => prevText + chunk.choices[0].delta.content);
-                }
-            }
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          const nt = JSON.parse(decoder.decode(value, { stream: true }))
+            .choices[0].delta.content;
+          if (nt) {
+            text += nt;
+            setStreamedText(text);
+          }
         }
+      } catch (error) {
+        console.error("Error while streaming text:", error);
+      }
+    }
 
-        streamText();
-    }, [data]);
+    streamText();
+  }, []);
 
-    return (
-        <AnalyticsContainer>
-            <Card>
-                <ChatContainer>
-                    <ChatMessage>{streamedText}</ChatMessage>
-                </ChatContainer>
-            </Card>
-        </AnalyticsContainer>
-    )
+  return (
+    <div
+      style={{
+        wordWrap: "break-word",
+        wordBreak: "break-all",
+      }}
+    >
+      {streamedText}
+    </div>
+  );
 }
-
