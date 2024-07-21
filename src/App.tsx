@@ -23,6 +23,8 @@ import Identicon from "@polkadot/react-identicon";
 import datahive_white from "./assets/datahive_white.png";
 import { PieChart } from "@mui/x-charts/PieChart";
 import CryptoJS from "crypto-js";
+import { doc, getDoc } from "firebase/firestore";
+import { db } from "./lib/firebase";
 
 const NAME = "pkd_test";
 
@@ -166,8 +168,20 @@ function App() {
     setup();
   }, []);
 
-  const buttonNameProcess = (name: string) => {
 
+  const buttonNameProcess = async (name: string) => {
+    const parts = name.split('-');
+    const docId = parts[parts.length - 1];
+
+    const docRef = doc(db, "products", docId); // Adjust the collection name if necessary
+    const docSnap = await getDoc(docRef);
+
+    if (docSnap.exists()) {
+      return docSnap.data().name; // Assuming the document has a field named 'name'
+    } else {
+      console.log("No such document!");
+      return null;
+    }
   };
 
   return (
@@ -228,25 +242,6 @@ function App() {
                         id: selection,
                         data: data?.getter(selection),
                       });
-
-                      console.log(
-                        Object.entries(
-                          Object.entries(data?.getter(selection))
-                            .flatMap(([, value]: any) =>
-                              Object.values(value.clicks).map(
-                                (click: any) => click.domId
-                              )
-                            )
-                            .reduce((acc: any, domId: any) => {
-                              acc[domId] = (acc[domId] || 0) + 1;
-                              return acc;
-                            }, {})
-                        ).map(([domId, count]: [any, any], index: any) => ({
-                          label: domId,
-                          value: count,
-                          id: index,
-                        }))
-                      );
                     }}
                   >
                     <option value="" disabled selected hidden>
@@ -337,7 +332,7 @@ function App() {
                               return acc;
                             }, {})
                         ).map(([domId, count]: [any, any], index: any) => ({
-                          label: domId,
+                          label: buttonNameProcess(domId),
                           value: count,
                           id: index,
                         })),
