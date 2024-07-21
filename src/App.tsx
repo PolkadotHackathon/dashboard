@@ -290,6 +290,15 @@ function App() {
     })();
   }, []);
 
+function formatClickToCheckoutRatio(ratio: number) {
+    if (ratio === 0 || isNaN(ratio)) {
+        return "N/A";
+    } else {
+        // Round to 2 decimal places
+        return (ratio * 100).toFixed(2) + "%";
+    }
+}
+
   return (
     <div className="app">
       <div className="main-section">
@@ -468,7 +477,14 @@ function App() {
                     <h2>Click to Checkout Ratio</h2>
                   </div>
                   <div className="chart-body">
-                    {processedData3 != 0 && <h1>{processedData3}</h1>}
+                    {/* {processedData3 != 0 && <h1>{processedData3}</h1>} */}
+
+                        <h1>
+                                        {
+                                            formatClickToCheckoutRatio(processedData3)
+
+                                        }
+                                        </h1>
                   </div>
                 </div>
                 <div className="chart-card">
