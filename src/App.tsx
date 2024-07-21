@@ -46,6 +46,7 @@ function App() {
   const [selectedCategoryA, setSelectedCategoryA] = useState<string>("");
   const [processedData, setProcessedData] = useState<any[]>([]);
   const [processedData2, setProcessedData2] = useState<any[]>([]);
+  const [processedData3, setProcessedData3] = useState<number>(0);
   const [products, setProducts] = useState<any[]>([]);
 
   const setSelectedAccount = async (account: InjectedAccountWithMeta) => {
@@ -234,6 +235,50 @@ function App() {
   }, [selection]);
 
   useEffect(() => {
+    if (selection && selection.data) {
+      const has = Object.entries(selection.data).map(
+        ([key, value]: [string, any]) => {
+          return {
+            user: key,
+            total_clicks: value.clicks.length,
+            has_checkout: value.clicks.find(
+              (click: any) => click.domId === "checkout-button"
+            ),
+          };
+        }
+      );
+
+      //   Average click count for conversion:
+      const average = has.reduce(
+        (acc: any, data: any) => {
+          if (data.has_checkout) {
+            acc.total += data.total_clicks;
+            acc.count += 1;
+          }
+          return acc;
+        },
+        { total: 0, count: 0 }
+      );
+
+      const average2 = has.reduce(
+        (acc: any, data: any) => {
+          if (!data.has_checkout) {
+            acc.total += data.total_clicks;
+            acc.count += 1;
+          }
+          return acc;
+        },
+        { total: 0, count: 0 }
+      );
+
+      const processed3 = average.total / average.count;
+      const processed4 = average2.total / average2.count;
+
+      setProcessedData3(processed3 / processed4);
+    }
+  }, [selection]);
+
+  useEffect(() => {
     (async () => {
       const products = await getDocs(collection(db, "products"));
       const productsData = products.docs.map((doc) => ({
@@ -400,9 +445,7 @@ function App() {
                   <div className="chart-body">
                     {processedData && (
                       <BarChart
-                        // Label bars:
                         xAxis={[
-                          // Name the bars with MUI
                           {
                             scaleType: "band",
                             data: ["Checkout", "No Checkout"],
@@ -417,6 +460,14 @@ function App() {
                         height={300}
                       />
                     )}
+                  </div>
+                </div>
+                <div className="chart-card">
+                  <div className="chart-header">
+                    <h2>Click to Checkout Ratio</h2>
+                  </div>
+                  <div className="chart-body">
+                    {processedData3 != 0 && <h1>{processedData3}</h1>}
                   </div>
                 </div>
               </div>

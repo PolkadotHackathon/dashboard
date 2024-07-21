@@ -240,6 +240,18 @@ div.add-website-popup {
     pointer-events: all;
 
     width: 45%;
+
+    .chart-body {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-width: 600px;
+      min-height: 300px;
+
+      h1 {
+        font-size: 100px;
+      }
+    }
     
     .chart-header {
       display: flex;
