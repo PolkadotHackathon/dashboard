@@ -24,6 +24,8 @@ import datahive_white from "./assets/datahive_white.png";
 import { PieChart } from "@mui/x-charts/PieChart";
 import CryptoJS from "crypto-js";
 
+import Analytics from "./components/Analytics";
+
 const NAME = "pkd_test";
 
 function App() {
@@ -384,6 +386,14 @@ function App() {
                   </span>
                 </button>
               </div>
+            </div>
+
+            <div className="flex flex-row align-middle justify-center" style={{
+                                width: "45%",
+                                height: "100%",
+                                position: "absolute",
+                            }}>
+                <Analytics data={"{'tingle': 'tingly'}"}/>
             </div>
           </div>
         ) : (
