@@ -22,8 +22,9 @@ import { Buffer } from "buffer";
 import Identicon from "@polkadot/react-identicon";
 import datahive_white from "./assets/datahive_white.png";
 import { PieChart } from "@mui/x-charts/PieChart";
+import { BarChart } from "@mui/x-charts/BarChart";
 import CryptoJS from "crypto-js";
-import { doc, getDoc } from "firebase/firestore";
+import { collection, doc, getDoc, getDocs } from "firebase/firestore";
 import { db } from "./lib/firebase";
 
 const NAME = "pkd_test";
@@ -33,17 +34,19 @@ function App() {
   const [keyring, setKeyring] = useState<Keyring | null>(null);
   const [accounts, setAccounts] = useState<InjectedAccountWithMeta[]>([]);
   const [selectedAccount, _setSelectedAccount] =
-      useState<InjectedAccountWithMeta | null>(null);
+    useState<InjectedAccountWithMeta | null>(null);
   const [isLoggingIn, setIsLoggingIn] = useState<boolean>(false);
   const [privateKey, setPrivateKey] = useState<string | null>(null);
   const [keyPairWindowOpen, setKeyPairWindowOpen] = useState<boolean>(false);
   const [tempKeys, setTempKeys] = useState<any | null>(null);
   const [addWebsiteWindowOpen, setAddWebsiteWindowOpen] =
-      useState<boolean>(false);
+    useState<boolean>(false);
   const [data, setData] = useState<any | null>(null);
   const [selection, setSelection] = useState<any | null>(null);
   const [selectedCategoryA, setSelectedCategoryA] = useState<string>("");
   const [processedData, setProcessedData] = useState<any[]>([]);
+  const [processedData2, setProcessedData2] = useState<any[]>([]);
+  const [products, setProducts] = useState<any[]>([]);
 
   const setSelectedAccount = async (account: InjectedAccountWithMeta) => {
     if (!api) return;
@@ -90,7 +93,7 @@ function App() {
     if (!api) return;
     const entries = await api.query.dbModule.websiteMap.entries();
     const keys = entries.map(
-        ([key, _]) => key.args.map((k) => k.toPrimitive())[0]
+      ([key, _]) => key.args.map((k) => k.toPrimitive())[0]
     );
 
     setData({
@@ -102,19 +105,19 @@ function App() {
             Object.entries(data as any).map(([k, v]: [string, any]) => {
               v.clicks.map((click: any) => {
                 const encryptedWordArray = CryptoJS.lib.WordArray.create(
-                    click.domId
+                  click.domId
                 );
                 const encryptedBase64 = encryptedWordArray.toString(
-                    CryptoJS.enc.Base64
+                  CryptoJS.enc.Base64
                 );
                 const decrypted = CryptoJS.AES.decrypt(
-                    encryptedBase64,
-                    "BuyBuy"
+                  encryptedBase64,
+                  "BuyBuy"
                 );
                 const decryptedString = decrypted.toString(CryptoJS.enc.Utf8);
                 const originalMessage = decryptedString.replace(
-                    /[\x00-\x1F\x7F-\x9F]/g,
-                    ""
+                  /[\x00-\x1F\x7F-\x9F]/g,
+                  ""
                 );
                 click.domId = originalMessage.trim();
               });
@@ -130,12 +133,12 @@ function App() {
     if (!api) return;
     if (!selectedAccount) return;
     await api.tx.dbModule
-        .registerWebsite({ websiteid: name })
-        .send(({ status }) => {
-          if (status.isInBlock) {
-            console.log(`included in ${status.asInBlock}`);
-          }
-        });
+      .registerWebsite({ websiteid: name })
+      .send(({ status }) => {
+        if (status.isInBlock) {
+          console.log(`included in ${status.asInBlock}`);
+        }
+      });
   };
 
   const generateKeyPair = () => {
@@ -157,368 +160,437 @@ function App() {
     setup();
   }, []);
 
-  const buttonNameProcess = async (name: string): Promise<string> => {
+  const buttonNameProcess = (name: string): string => {
     const parts = name.split("-");
-    const docId = parts[parts.length - 1];
-    const docRef = doc(db, "products", docId);
-    const docSnap = await getDoc(docRef);
-    if (docSnap.exists()) {
-      return docSnap.data().name;
-    } else {
-      console.log("No such document!");
-      return "Unknown Product";
+
+    if (name.startsWith("add-to-cart")) {
+      const docId = parts[parts.length - 1];
+      return (
+        products.find((data) => data.id === docId)?.nickname + " Cart" ||
+        "Unknown"
+      );
     }
+
+    return name;
   };
 
   useEffect(() => {
     if (selection && selection.data) {
-      const fetchLabels = async () => {
+      const fetchLabels = () => {
         const entries = Object.entries(
-            Object.entries(selection.data)
-                .flatMap(([, value]: any) =>
-                    Object.values(value.clicks).map((click: any) => click.domId)
-                )
-                .reduce((acc: any, domId: any) => {
-                  acc[domId] = (acc[domId] || 0) + 1;
-                  return acc;
-                }, {})
+          Object.entries(selection.data)
+            .flatMap(([, value]: any) =>
+              Object.values(value.clicks).map((click: any) => click.domId)
+            )
+            .reduce((acc: any, domId: any) => {
+              acc[domId] = (acc[domId] || 0) + 1;
+              return acc;
+            }, {})
         );
 
-        const processed = await Promise.all(
-            entries.map(async ([domId, count]: [any, any]) => {
-              const label = await buttonNameProcess(domId);
-              return { label, value: count };
-            })
+        const processed = entries.map(([domId, count]: [any, any]) => {
+          const label = buttonNameProcess(domId);
+          return { label, value: count };
+        });
+
+        const filtered = processed.filter(
+          (data) =>
+            data.label.toLowerCase().includes("cart") &&
+            (selectedCategoryA === "" ||
+              products.find(
+                (product) =>
+                  product.nickname === data.label.replace(" Cart", "")
+              )?.category === selectedCategoryA)
         );
 
-        setProcessedData(processed);
+        const processed2 = filtered.map((data) => {
+          const label = data.label.replace(" Cart", "");
+          const value = data.value;
+          return { label, value };
+        });
+
+        setProcessedData(processed2);
       };
 
       fetchLabels();
     }
+  }, [selection, selectedCategoryA]);
+
+  useEffect(() => {
+    if (selection && selection.data) {
+      const has = Object.entries(selection.data).map(
+        ([key, value]: [string, any]) => {
+          return value.clicks.find(
+            (click: any) => click.domId === "checkout-button"
+          );
+        }
+      );
+
+      const num_true = has.filter((x: any) => x).length;
+      const num_false = has.length - num_true;
+
+      setProcessedData2([num_true, num_false]);
+    }
   }, [selection]);
 
+  useEffect(() => {
+    (async () => {
+      const products = await getDocs(collection(db, "products"));
+      const productsData = products.docs.map((doc) => ({
+        ...doc.data(),
+        id: doc.id,
+      }));
+      setProducts(productsData);
+    })();
+  }, []);
+
   return (
-      <div className="app">
-        <div className="main-section">
-          {selectedAccount && privateKey ? (
+    <div className="app">
+      <div className="main-section">
+        {selectedAccount && privateKey ? (
+          <div>
+            {addWebsiteWindowOpen ? (
               <div>
-                {addWebsiteWindowOpen ? (
-                    <div>
-                      <div className="bg-darken"></div>
-                      <div className="add-website-popup">
-                        <h2>Add Website</h2>
-                        <input
-                            type="text"
-                            placeholder="Website ID"
-                            id="website-id-input"
-                        ></input>
-                        <button
-                            onClick={() => {
-                              const val = (
-                                  document.getElementById(
-                                      "website-id-input"
-                                  )!! as HTMLInputElement
-                              ).value;
-                              if (val) {
-                                registerWebsite(parseInt(val));
-                                updateData();
-                                setAddWebsiteWindowOpen(false);
-                              }
-                            }}
-                        >
-                          Add
-                        </button>
-                      </div>
-                    </div>
-                ) : (
-                    <></>
-                )}
-                <div className="dashboard">
-                  <div className="sidepane">
-                    <div className="user-profile">
-                      <Identicon
-                          className="user-img"
-                          value={selectedAccount.address}
-                          size={70}
-                          theme={"jdenticon"}
-                      />
-                      <div className="user-info">
-                        <h4>{selectedAccount.meta.name}</h4>
-                        <p>{selectedAccount.address}</p>
-                      </div>
-                    </div>
-                    <div className="web-select">
-                      <select
-                          onChange={async (e) => {
-                            const selection = parseInt(e.target.value);
-                            setSelection({
-                              id: selection,
-                              data: data?.getter(selection),
-                            });
-                          }}
-                      >
-                        <option value="" disabled selected hidden>
-                          Select Website
-                        </option>
-                        {data?.websites.map((website: any) => (
-                            <option key={website} value={website}>
-                              {website}
-                            </option>
-                        ))}
-                      </select>
-                      <a
-                          onClick={() => {
-                            setAddWebsiteWindowOpen(true);
-                          }}
-                      >
-                        <Plus color="white" size={40} />
-                      </a>
-                    </div>
-                    <div className="sidepane-divider" />
-                    <div className="sidepane-links">
-                      <a className="selected">
-                        <LayoutGrid color="white" size={32} />
-                        Dashboard
-                      </a>
-                      <a>
-                        <ClipboardList color="white" size={32} />
-                        Reports
-                      </a>
-                      <a>
-                        <Bolt color="white" size={32} />
-                        Settings
-                      </a>
-                      <a>
-                        <Info color="white" size={32} />
-                        About
-                      </a>
-                    </div>
-                    <div className="footnote">
-                      <img src={datahive_white}></img>
-                      DataHive Inc.
-                    </div>
-                  </div>
-                  <div className="maincontent">
-                    <div className="chart-card">
-                      <div className="chart-header">
-                        <h2>Popular Products</h2>
-                        <select
-                            id="category-select-a"
-                            defaultValue=""
-                            onChange={() => {
-                              const val = (
-                                  document.getElementById(
-                                      "category-select-a"
-                                  )!! as HTMLSelectElement
-                              ).value;
-                              setSelectedCategoryA(val);
-                            }}
-                        >
-                          <option value="" disabled hidden>
-                            Select Category
-                          </option>
-                          <option value="">All Categories</option>
-                          {[
-                            "Electronics",
-                            "Sports & Leisure",
-                            "Clothing",
-                            "Home & Furniture",
-                            "Health & Beauty",
-                            "Garden & DIY",
-                          ].map((category) => (
-                              <option value={category} key={category}>
-                                {category}
-                              </option>
-                          ))}
-                        </select>
-                      </div>
-                      <div className="chart-body">
-                        {processedData.length > 0 && (
-                            <PieChart
-                                series={[
-                                  {
-                                    data: processedData,
-                                  },
-                                ]}
-                                width={600}
-                                height={300}
-                            />
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-          ) : (
-              <DeformCanvas />
-          )}
-          {accounts.length == 0 && !isLoggingIn ? (
-              <div className="content">
-                <div>
-                  <div className="login-card">
-                    <h2
-                        style={{
-                          marginBottom: "50px",
-                        }}
-                    >
-                      Connect to <div className="bolded">Polkadot</div>
-                    </h2>
-                    <button className="login-button" onClick={handleConnection}>
-                      Link my Wallet
-                      <span className="plus top-left">
-                    <span className="horizontal"></span>
-                    <span className="vertical"></span>
-                  </span>
-                      <span className="plus top-right">
-                    <span className="horizontal"></span>
-                    <span className="vertical"></span>
-                  </span>
-                      <span className="plus bottom-left">
-                    <span className="horizontal"></span>
-                    <span className="vertical"></span>
-                  </span>
-                      <span className="plus bottom-right">
-                    <span className="horizontal"></span>
-                    <span className="vertical"></span>
-                  </span>
-                    </button>
-                  </div>
-                </div>
-              </div>
-          ) : (
-              <></>
-          )}
-          {isLoggingIn ? (
-              <div className="content">
-                <div className="login-card">
-                  <h2>Connecting...</h2>
-                </div>
-              </div>
-          ) : (
-              <></>
-          )}
-          {accounts.length > 1 && selectedAccount == null ? (
-              <div className="content">
-                <div className="login-card">
-                  <h2
-                      style={{
-                        marginBottom: "50px",
-                      }}
-                  >
-                    Select an account
-                  </h2>
-                  <select
-                      className="account-select"
-                      onChange={handleAccountSelection}
-                  >
-                    <option value="" disabled selected hidden>
-                      Select Wallet
-                    </option>
-                    {accounts.map((account) => (
-                        <option key={account.address} value={account.address}>
-                          {account.meta.name}
-                        </option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-          ) : (
-              <></>
-          )}
-          {selectedAccount && !privateKey ? (
-              <div className="content">
-                <div className="login-card">
-                  <h2>Enter your Key</h2>
+                <div className="bg-darken"></div>
+                <div className="add-website-popup">
+                  <h2>Add Website</h2>
                   <input
-                      type="password"
-                      placeholder="Private Key"
-                      id="private-key-input"
-                      onKeyPress={(e) => {
-                        if (e.key === "Enter") {
-                          const val = (
-                              document.getElementById(
-                                  "private-key-input"
-                              )!! as HTMLInputElement
-                          ).value;
-                          if (val) {
-                            setPrivateKey(val);
-                            updateData();
-                          }
-                        }
-                      }}
+                    type="text"
+                    placeholder="Website ID"
+                    id="website-id-input"
                   ></input>
                   <button
-                      className="button"
-                      onClick={() => {
-                        generateKeyPair();
-                        setKeyPairWindowOpen(true);
-                      }}
+                    onClick={() => {
+                      const val = (
+                        document.getElementById(
+                          "website-id-input"
+                        )!! as HTMLInputElement
+                      ).value;
+                      if (val) {
+                        registerWebsite(parseInt(val));
+                        updateData();
+                        setAddWebsiteWindowOpen(false);
+                      }
+                    }}
                   >
-                    Generate Key Pair
+                    Add
                   </button>
                 </div>
-                {keyPairWindowOpen ? (
-                    <div className="key-pair-window">
-                      <h2>Generated Keys</h2>
-                      <p>Public Key</p>
-                      <div className="key-item">
-                        {tempKeys?.publicKey}
-                        <a
-                            onClick={() => {
-                              navigator.clipboard.writeText(tempKeys?.publicKey);
-                              setTempKeys({
-                                ...tempKeys,
-                                pubCopied: true,
-                              });
-                            }}
-                        >
-                          <Copy
-                              color={tempKeys?.pubCopied ? "#00ff00" : "white"}
-                              size={35}
-                          />
-                        </a>
-                      </div>
-                      <p>Private Key</p>
-                      <div className="key-item">
-                        {tempKeys?.privateKey}
-                        <a
-                            onClick={() => {
-                              navigator.clipboard.writeText(tempKeys?.privateKey);
-                              setTempKeys({
-                                ...tempKeys,
-                                priCopied: true,
-                              });
-                            }}
-                        >
-                          <Copy
-                              color={tempKeys?.priCopied ? "#00ff00" : "white"}
-                              size={35}
-                          />
-                        </a>
-                      </div>
-                      <h3>
-                        Please keep your keys safe, you won't be able to view them
-                        again!
-                      </h3>
-                      <button
-                          onClick={() => {
-                            setKeyPairWindowOpen(false);
-                            setTempKeys(null);
-                          }}
-                      >
-                        Close
-                      </button>
-                    </div>
-                ) : (
-                    <></>
-                )}
               </div>
-          ) : (
+            ) : (
               <></>
-          )}
-        </div>
+            )}
+            <div className="dashboard">
+              <div className="sidepane">
+                <div className="user-profile">
+                  <Identicon
+                    className="user-img"
+                    value={selectedAccount.address}
+                    size={70}
+                    theme={"jdenticon"}
+                  />
+                  <div className="user-info">
+                    <h4>{selectedAccount.meta.name}</h4>
+                    <p>{selectedAccount.address}</p>
+                  </div>
+                </div>
+                <div className="web-select">
+                  <select
+                    onChange={async (e) => {
+                      const selection = parseInt(e.target.value);
+                      setSelection({
+                        id: selection,
+                        data: data?.getter(selection),
+                      });
+                    }}
+                  >
+                    <option value="" disabled selected hidden>
+                      Select Website
+                    </option>
+                    {data?.websites.map((website: any) => (
+                      <option key={website} value={website}>
+                        {website}
+                      </option>
+                    ))}
+                  </select>
+                  <a
+                    onClick={() => {
+                      setAddWebsiteWindowOpen(true);
+                    }}
+                  >
+                    <Plus color="white" size={40} />
+                  </a>
+                </div>
+                <div className="sidepane-divider" />
+                <div className="sidepane-links">
+                  <a className="selected">
+                    <LayoutGrid color="white" size={32} />
+                    Dashboard
+                  </a>
+                  <a>
+                    <ClipboardList color="white" size={32} />
+                    Reports
+                  </a>
+                  <a>
+                    <Bolt color="white" size={32} />
+                    Settings
+                  </a>
+                  <a>
+                    <Info color="white" size={32} />
+                    About
+                  </a>
+                </div>
+                <div className="footnote">
+                  <img src={datahive_white}></img>
+                  DataHive Inc.
+                </div>
+              </div>
+              <div className="maincontent">
+                <div className="chart-card">
+                  <div className="chart-header">
+                    <h2>Popular Products</h2>
+                    <select
+                      id="category-select-a"
+                      defaultValue=""
+                      onChange={() => {
+                        const val = (
+                          document.getElementById(
+                            "category-select-a"
+                          )!! as HTMLSelectElement
+                        ).value;
+                        setSelectedCategoryA(val);
+                      }}
+                    >
+                      <option value="" disabled hidden>
+                        Select Category
+                      </option>
+                      <option value="">All Categories</option>
+                      {[
+                        "Electronics",
+                        "Sports & Leisure",
+                        "Clothing",
+                        "Home & Furniture",
+                        "Health & Beauty",
+                        "Garden & DIY",
+                      ].map((category) => (
+                        <option value={category} key={category}>
+                          {category}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="chart-body">
+                    {processedData && (
+                      <PieChart
+                        series={[
+                          {
+                            data: processedData,
+                          },
+                        ]}
+                        width={600}
+                        height={300}
+                      />
+                    )}
+                  </div>
+                </div>
+                <div className="chart-card">
+                  <div className="chart-header">
+                    <h2>User Checkout</h2>
+                  </div>
+                  <div className="chart-body">
+                    {processedData && (
+                      <BarChart
+                        // Label bars:
+                        xAxis={[
+                          // Name the bars with MUI
+                          {
+                            scaleType: "band",
+                            data: ["Checkout", "No Checkout"],
+                          },
+                        ]}
+                        series={[
+                          {
+                            data: processedData2,
+                          },
+                        ]}
+                        width={600}
+                        height={300}
+                      />
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        ) : (
+          <DeformCanvas />
+        )}
+        {accounts.length == 0 && !isLoggingIn ? (
+          <div className="content">
+            <div>
+              <div className="login-card">
+                <h2
+                  style={{
+                    marginBottom: "50px",
+                  }}
+                >
+                  Connect to <div className="bolded">Polkadot</div>
+                </h2>
+                <button className="login-button" onClick={handleConnection}>
+                  Link my Wallet
+                  <span className="plus top-left">
+                    <span className="horizontal"></span>
+                    <span className="vertical"></span>
+                  </span>
+                  <span className="plus top-right">
+                    <span className="horizontal"></span>
+                    <span className="vertical"></span>
+                  </span>
+                  <span className="plus bottom-left">
+                    <span className="horizontal"></span>
+                    <span className="vertical"></span>
+                  </span>
+                  <span className="plus bottom-right">
+                    <span className="horizontal"></span>
+                    <span className="vertical"></span>
+                  </span>
+                </button>
+              </div>
+            </div>
+          </div>
+        ) : (
+          <></>
+        )}
+        {isLoggingIn ? (
+          <div className="content">
+            <div className="login-card">
+              <h2>Connecting...</h2>
+            </div>
+          </div>
+        ) : (
+          <></>
+        )}
+        {accounts.length > 1 && selectedAccount == null ? (
+          <div className="content">
+            <div className="login-card">
+              <h2
+                style={{
+                  marginBottom: "50px",
+                }}
+              >
+                Select an account
+              </h2>
+              <select
+                className="account-select"
+                onChange={handleAccountSelection}
+              >
+                <option value="" disabled selected hidden>
+                  Select Wallet
+                </option>
+                {accounts.map((account) => (
+                  <option key={account.address} value={account.address}>
+                    {account.meta.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+        ) : (
+          <></>
+        )}
+        {selectedAccount && !privateKey ? (
+          <div className="content">
+            <div className="login-card">
+              <h2>Enter your Key</h2>
+              <input
+                type="password"
+                placeholder="Private Key"
+                id="private-key-input"
+                onKeyPress={(e) => {
+                  if (e.key === "Enter") {
+                    const val = (
+                      document.getElementById(
+                        "private-key-input"
+                      )!! as HTMLInputElement
+                    ).value;
+                    if (val) {
+                      setPrivateKey(val);
+                      updateData();
+                    }
+                  }
+                }}
+              ></input>
+              <button
+                className="button"
+                onClick={() => {
+                  generateKeyPair();
+                  setKeyPairWindowOpen(true);
+                }}
+              >
+                Generate Key Pair
+              </button>
+            </div>
+            {keyPairWindowOpen ? (
+              <div className="key-pair-window">
+                <h2>Generated Keys</h2>
+                <p>Public Key</p>
+                <div className="key-item">
+                  {tempKeys?.publicKey}
+                  <a
+                    onClick={() => {
+                      navigator.clipboard.writeText(tempKeys?.publicKey);
+                      setTempKeys({
+                        ...tempKeys,
+                        pubCopied: true,
+                      });
+                    }}
+                  >
+                    <Copy
+                      color={tempKeys?.pubCopied ? "#00ff00" : "white"}
+                      size={35}
+                    />
+                  </a>
+                </div>
+                <p>Private Key</p>
+                <div className="key-item">
+                  {tempKeys?.privateKey}
+                  <a
+                    onClick={() => {
+                      navigator.clipboard.writeText(tempKeys?.privateKey);
+                      setTempKeys({
+                        ...tempKeys,
+                        priCopied: true,
+                      });
+                    }}
+                  >
+                    <Copy
+                      color={tempKeys?.priCopied ? "#00ff00" : "white"}
+                      size={35}
+                    />
+                  </a>
+                </div>
+                <h3>
+                  Please keep your keys safe, you won't be able to view them
+                  again!
+                </h3>
+                <button
+                  onClick={() => {
+                    setKeyPairWindowOpen(false);
+                    setTempKeys(null);
+                  }}
+                >
+                  Close
+                </button>
+              </div>
+            ) : (
+              <></>
+            )}
+          </div>
+        ) : (
+          <></>
+        )}
       </div>
+    </div>
   );
 }
 
