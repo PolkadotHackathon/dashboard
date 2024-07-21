@@ -1,14 +1,22 @@
 import { WsProvider, ApiPromise, Keyring } from "@polkadot/api";
-import { web3Accounts, web3Enable } from "@polkadot/extension-dapp";
+import { web3Accounts, web3Enable, web3FromAddress } from "@polkadot/extension-dapp";
 import { InjectedAccountWithMeta } from "@polkadot/extension-inject/types";
 import { useEffect, useState } from "react";
 import "./styles/main.scss";
 import "./styles/dashboard.scss";
 import DeformCanvas from "./components/HoverCanvas";
-import { Copy, LayoutGrid } from "lucide-react";
+import {
+  Bolt,
+  ClipboardList,
+  Copy,
+  Info,
+  LayoutGrid,
+  Plus,
+} from "lucide-react";
 import EC from "elliptic";
 import { Buffer } from "buffer";
 import Identicon from "@polkadot/react-identicon";
+import datahive_white from "./assets/datahive_white.png";
 
 const NAME = "pkd_test";
 
@@ -16,15 +24,24 @@ function App() {
   const [api, setApi] = useState<ApiPromise | null>(null);
   const [keyring, setKeyring] = useState<Keyring | null>(null);
   const [accounts, setAccounts] = useState<InjectedAccountWithMeta[]>([]);
-  const [selectedAccount, setSelectedAccount] =
+  const [selectedAccount, _setSelectedAccount] =
     useState<InjectedAccountWithMeta | null>(null);
   const [isLoggingIn, setIsLoggingIn] = useState<boolean>(false);
   const [privateKey, setPrivateKey] = useState<string | null>(null);
 
   const [keyPairWindowOpen, setKeyPairWindowOpen] = useState<boolean>(false);
   const [tempKeys, setTempKeys] = useState<any | null>(null);
+  const [addWebsiteWindowOpen, setAddWebsiteWindowOpen] =
+    useState<boolean>(false);
 
   const [data, setData] = useState<any | null>(null);
+
+  const setSelectedAccount = async (account: InjectedAccountWithMeta) => {
+    if (!api) return;
+    _setSelectedAccount(account);
+    const injector = await web3FromAddress(account.address);
+    api.setSigner(injector.signer);
+  };
 
   const setup = async () => {
     const provider = new WsProvider("ws://localhost:9944");
@@ -57,41 +74,12 @@ function App() {
     if (!account) {
       throw new Error("Account not found");
     }
+
     setSelectedAccount(account);
   };
 
-  const loadData = async () => {
+  const updateData = async () => {
     if (!api) return;
-    console.log(api.query.dbModule);
-
-    await api.tx.dbModule
-      .registerWebsite(1)
-      .signAndSend(
-        "5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY",
-        { signer },
-        async ({ events = [], status }) => {
-          if (status.isInBlock) {
-            console.log(
-              "Transaction included at block hash",
-              status.asInBlock.toHex()
-            );
-            console.log("Events:");
-            events.forEach(({ event: { data, method, section }, phase }) => {
-              console.log(
-                "\t",
-                phase.toString(),
-                `: ${section}.${method}`,
-                data.toString()
-              );
-            });
-          } else if (status.isFinalized) {
-            console.log(
-              "Transaction finalized at block hash",
-              status.asFinalized.toHex()
-            );
-          }
-        }
-      );
 
     // Load data from custom substrate pallet
     const websites = await api.query.dbModule.websiteMap.keys();
@@ -100,7 +88,20 @@ function App() {
       return data;
     };
     const data = await Promise.all(websites.map(getter));
-    console.log(data);
+    setData(data);
+  };
+
+  const registerWebsite = async (name: number) => {
+    if (!api) return;
+    if (!selectedAccount) return;
+
+    await api.tx.dbModule
+      .registerWebsite({ websiteid: name })
+      .send(({ status }) => {
+        if (status.isInBlock) {
+          console.log(`included in ${status.asInBlock}`);
+        }
+      });
   };
 
   const generateKeyPair = () => {
@@ -140,27 +141,94 @@ function App() {
     <div className="app">
       <div className="main-section">
         {selectedAccount && privateKey ? (
-          <div className="dashboard">
-            <div className="sidepane">
-              <div className="user-profile">
-                <Identicon
-                  className="user-img"
-                  value={selectedAccount.address}
-                  size={70}
-                  theme={"jdenticon"}
-                />
-                <div className="user-info">
-                  <h4>{selectedAccount.meta.name}</h4>
-                  <p>{selectedAccount.address}</p>
+          <div>
+            {addWebsiteWindowOpen ? (
+              <div>
+                <div className="bg-darken"></div>
+                <div className="add-website-popup">
+                  <h2>Add Website</h2>
+                  <input
+                    type="text"
+                    placeholder="Website ID"
+                    id="website-id-input"
+                  ></input>
+                  <button
+                    onClick={() => {
+                      const val = (
+                        document.getElementById(
+                          "website-id-input"
+                        )!! as HTMLInputElement
+                      ).value;
+                      if (val) {
+                        registerWebsite(parseInt(val));
+                        updateData();
+                        setAddWebsiteWindowOpen(false);
+                      }
+                    }}
+                  >
+                    Add
+                  </button>
                 </div>
               </div>
-              <div className="sidepane-links">
-                <a className="selected">
-                  <LayoutGrid color="white" size={32} />
-                  Dashboard
-                </a>
-                <a>Settings</a>
-                <a>About</a>
+            ) : (
+              <></>
+            )}
+            <div className="dashboard">
+              <div className="sidepane">
+                <div className="user-profile">
+                  <Identicon
+                    className="user-img"
+                    value={selectedAccount.address}
+                    size={70}
+                    theme={"jdenticon"}
+                  />
+                  <div className="user-info">
+                    <h4>{selectedAccount.meta.name}</h4>
+                    <p>{selectedAccount.address}</p>
+                  </div>
+                </div>
+                <div className="web-select">
+                  <select>
+                    <option value="" disabled selected hidden>
+                      Select Website
+                    </option>
+                    {data?.map((website: any, index: number) => (
+                      <option key={index} value={index}>
+                        {website.id}
+                      </option>
+                    ))}
+                  </select>
+                  <a
+                    onClick={() => {
+                      setAddWebsiteWindowOpen(true);
+                    }}
+                  >
+                    <Plus color="white" size={40} />
+                  </a>
+                </div>
+                <div className="sidepane-divider" />
+                <div className="sidepane-links">
+                  <a className="selected">
+                    <LayoutGrid color="white" size={32} />
+                    Dashboard
+                  </a>
+                  <a>
+                    <ClipboardList color="white" size={32} />
+                    Reports
+                  </a>
+                  <a>
+                    <Bolt color="white" size={32} />
+                    Settings
+                  </a>
+                  <a>
+                    <Info color="white" size={32} />
+                    About
+                  </a>
+                </div>
+                <div className="footnote">
+                  <img src={datahive_white}></img>
+                  DataHive Inc.
+                </div>
               </div>
             </div>
           </div>
@@ -250,11 +318,14 @@ function App() {
                 id="private-key-input"
                 onKeyPress={(e) => {
                   if (e.key === "Enter") {
-                    const val =
-                      document.getElementById("private-key-input")?.value;
+                    const val = (
+                      document.getElementById(
+                        "private-key-input"
+                      )!! as HTMLInputElement
+                    ).value;
                     if (val) {
                       setPrivateKey(val);
-                      loadData();
+                      updateData();
                     }
                   }
                 }}
